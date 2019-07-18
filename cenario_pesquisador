@@ -1,0 +1,809 @@
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_mixer.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+
+//Constantes que definem o tamanho da tela
+int largura_tela = 1280;
+int altura_tela = 720;
+
+//Criar Janela e Renderizador Global
+
+SDL_Window* janela_global = NULL;
+SDL_Renderer* renderer_global = NULL;
+
+//Função de Iniciar
+void iniciar()
+{
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);			//
+	TTF_Init();											// Inicialização do SDL
+	IMG_Init(IMG_INIT_PNG);								//
+	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 5000); //
+	
+	janela_global = SDL_CreateWindow("Jogo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, largura_tela, altura_tela, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE /*| SDL_WINDOW_FULLSCREEN*/);//
+	renderer_global = SDL_CreateRenderer(janela_global, -1, SDL_RENDERER_ACCELERATED);																					   //Inicialização da Janela
+	SDL_SetRenderDrawColor(renderer_global, 255, 255, 255, 255);																										   //
+}
+
+//Ativa\Desativa a musica do jogo
+void musica(Mix_Music* musica_jogo, int contador)
+{
+	if (contador == 1)
+	{
+		Mix_PlayMusic(musica_jogo, -1);
+	}
+	if (contador == 0)
+	{
+		Mix_HaltMusic();
+	}
+
+
+}
+
+//Função de Fechar
+void fechar()
+{
+	SDL_Quit();			//
+	Mix_CloseAudio();	// Encerramento do SDL
+	IMG_Quit();			//
+	TTF_Quit();			//
+
+	SDL_DestroyWindow(janela_global);
+	SDL_DestroyRenderer(renderer_global);
+}
+
+//Função de Carregar_Midia
+SDL_Texture* carregar_midia(const char* caminho, SDL_Renderer* renderizador) //Recebe o caminho e o renderizador
+{
+	SDL_Surface* criadora = IMG_Load(caminho);
+
+	SDL_SetColorKey(criadora, SDL_TRUE, SDL_MapRGB(criadora->format, 30, 36, 111));
+
+	SDL_Texture* textura = SDL_CreateTextureFromSurface(renderizador, criadora);
+	
+	SDL_FreeSurface(criadora);
+	
+	return textura;
+}
+
+//Função de atualizar o movimento de detetives
+void mov_detetive(int* contador, const char* caminho, SDL_Texture* texture, SDL_Rect detetive)
+{
+	*contador += 1;
+
+	texture = carregar_midia(caminho, renderer_global);
+
+	SDL_RenderCopy(renderer_global, texture, NULL, &detetive);
+
+	SDL_DestroyTexture(texture);
+}
+
+//carrega e executa o som dos passos
+void som_passos(Mix_Chunk* Passos_1, Mix_Chunk* Passos_2, Mix_Chunk* Passos_3, int* contagem)
+{
+	if (*contagem == 0)
+	{
+		Mix_PlayChannel(-1, Passos_1, 0);
+		*contagem = 1;
+	}
+	else if (*contagem == 1)
+	{
+		Mix_PlayChannel(-1, Passos_2, 0);
+		*contagem = 2;
+	}
+	else if(*contagem == 2)
+	{
+		Mix_PlayChannel(-1, Passos_3, 0);
+		*contagem = 0;
+	}
+
+}
+
+//Mantem o detetive na tela mesmo após pressionar uma tecla que não seja de movimentação
+void manter_detetive(int* contador1, int* contador2, int* contador3, int* contador4, int* tecla, SDL_Rect* rect, SDL_Texture* textura, const char* caminho)
+{
+	textura = carregar_midia(caminho, renderer_global);
+	*contador1 = 1;
+	*contador2 = 1;
+	*contador3 = 1;
+	*contador4 = 1;
+
+	if (*tecla == 1)
+	{
+		rect->y += 10;
+	}
+	else if(*tecla == 2)
+	{
+		rect->x += 10;
+	}
+	else if(*tecla == 3)
+	{
+		rect->y -= 10;
+	}
+	else if (*tecla == 4)
+	{
+		rect->x -= 10;
+	}
+
+	*tecla = 0;
+
+	SDL_RenderCopy(renderer_global, textura, NULL, rect);
+
+	SDL_DestroyTexture(textura);
+}
+
+SDL_Texture* criar_texto(const char* frase, TTF_Font* fonte)
+{
+	SDL_Surface* criadora_texto = NULL;
+
+	criadora_texto = TTF_RenderText_Solid(fonte, frase, {0,0,0});
+
+	SDL_Texture* textura_texto = SDL_CreateTextureFromSurface(renderer_global, criadora_texto);
+	SDL_FreeSurface(criadora_texto);
+
+	return textura_texto;
+}
+
+void texto(int flag, bool habilitar, SDL_Texture* textura, SDL_Rect mostrar_texto, TTF_Font* fonte)
+{
+	const char* frase = "Hm!";
+
+	if (flag == 0 && habilitar == true)
+	{
+		frase = "Onde será que estao os fragmentos das paginas?";
+	}
+	else if (flag == 0 && habilitar == false)
+	{
+		frase = "O que será que podemos encontrar por aqui?";
+	}
+	else if (flag == 1 && habilitar == true)
+	{
+		frase = "Encontrei a primeira!";
+	}
+	else if (flag == 1 && habilitar == false)
+	{
+		frase = "Mas o que será isso?";
+	}
+	else if (flag == 2 && habilitar == true)
+	{
+		frase = "Mais uma, sinto que estou me aproximando de uma pista";
+	}
+	else if (flag == 2 && habilitar == false)
+	{
+		frase = "Intrigante, aparentemente existem vários desses pápeis espalhados por aqui!";
+	}
+	else if (flag == 3 && habilitar == true)
+	{
+		frase = "Falta pouco!";
+	}
+	else if (flag == 3 && habilitar == false)
+	{
+		frase = "Já é a terceira, espero que isso me leve a algum lugar!";
+	}
+	else if (flag == 4 && habilitar == true)
+	{
+		frase = "Consegui, essa com certeza é a última!";
+	}
+	else if (flag == 4 && habilitar == false)
+	{
+		frase = "Acho que foram todos, mas o que é isso?";
+	}
+	else if (flag == 5 && habilitar == true)
+	{
+		frase = "Agora tudo faz sentido, são pedaços da página rasgada!";
+	}
+	else if (flag == 6)
+	{
+		frase = "Pressione E para interagir";
+	}
+	else if (flag == 7)
+	{
+		frase = "Não há mais nada a ser fazer aqui!";
+	}
+
+	textura = criar_texto(frase, fonte);
+	SDL_RenderCopy(renderer_global, textura, NULL, &mostrar_texto);
+	SDL_RenderPresent(renderer_global);
+}
+
+void save_cenario(int contador, bool fragmento1, bool fragmento2, bool fragmento3, bool fragmento4, bool habilitado)
+{
+	FILE* salvar = NULL;
+
+	salvar = fopen("Release/cenario_pesquisador.txt", "w");
+
+	fprintf(salvar, "%i %i %i %i %i %i", contador, fragmento1, fragmento2, fragmento3, fragmento4, habilitado);
+	
+	fclose(salvar);
+
+}
+
+void load_cenario(int* contador, bool* fragmento1, bool* fragmento2, bool* fragmento3, bool* fragmento4, bool* habilitado)
+{
+	int aux1 = 0;
+	int aux2 = 0; 
+	int aux3 = 0; 
+	int aux4 = 0; 
+	int aux5 = 0;
+	int aux6 = 0;
+
+	FILE* abrir = NULL;
+
+	abrir = fopen("Release/cenario_pesquisador.txt", "r");
+
+	fscanf(abrir, "%i %i %i %i %i %i", &aux5, &aux1, &aux2, &aux3, &aux4, &aux6);
+
+	*contador = aux5;
+	*fragmento1 = aux1;
+	*fragmento2 = aux2;
+	*fragmento3 = aux3;
+	*fragmento4 = aux4;
+	*habilitado = aux6;
+	
+	fclose(abrir);
+}
+
+int main(int argc, char* args[])
+{
+	//Função que inicia tudo
+	iniciar();
+
+	bool fragmento1 = true;
+	bool fragmento2 = true;
+	bool fragmento3 = true;
+	bool fragmento4 = true;
+	bool habilitar_puzzle = false;
+
+	int contador_frag = 0;
+
+	load_cenario(&contador_frag, &fragmento1, &fragmento2, &fragmento3, &fragmento4, &habilitar_puzzle);
+
+	TTF_Font* fonte = TTF_OpenFont("Recursos/Fonte/Pacifico.ttf", 24);
+
+	//Sound Effects
+	Mix_Chunk* passo_1 = Mix_LoadWAV("Recursos/Audios/Passo 1.wav");
+	Mix_Chunk* passo_2 = Mix_LoadWAV("Recursos/Audios/Passo 2.wav");
+	Mix_Chunk* passo_3 = Mix_LoadWAV("Recursos/Audios/Passo 3.wav");
+	//= = = = = = = = = = = =\\
+
+	//= = = = = = = = = = = = Som na Caixa = = = = = = = = = = =\\
+
+	Mix_Music* musica_jogo = Mix_LoadMUS("Recursos/Audios/Som dos Cravos.wav");
+
+	musica(musica_jogo, 1);
+	//= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =\\
+
+	//Verificador de continuidade do jogo
+	bool rodar = true;
+
+	//Evento do Jogo
+	SDL_Event jogo;
+
+	//= = = = = = = = = Retangulos de Colisao = = = = = = = = = = =\\
+
+	SDL_Rect detetive = { 250, 140, 70, 60 };
+	SDL_Rect livro = {(52.44/100)*largura_tela, (44.1/100)*altura_tela, (4.3/100)*largura_tela,(8.8/100)*altura_tela};
+	SDL_Rect mostrar_texto = { (10.0 / 100) * largura_tela, (75.4 / 100) * altura_tela, (85.0 / 100) * largura_tela, (20.0 / 100) * altura_tela };
+	SDL_Rect saida = { 250, 140, 70, 60 };
+
+	SDL_Rect pagina1 = {0, (29.4/100)*altura_tela, 40, 40};
+	SDL_Rect pagina2 = {(63.47/100)*largura_tela, (67.64/100)*altura_tela, 40, 40};
+	SDL_Rect pagina3 = {(90.82/100)*largura_tela, (25.0/100)*altura_tela,40, 40};
+	SDL_Rect pagina4 = {(31.25/100)*largura_tela, (82.35/100)*altura_tela, 40, 40};
+	
+	SDL_Rect colisao_estante1 = {(80.0/100)*largura_tela, (16.2/100)*altura_tela, (19.5/100)*largura_tela, (0.7/100)*altura_tela};
+	SDL_Rect colisao_estante2 = {(80.0/100)*largura_tela, (42.6/100)*altura_tela, (19.5/100)*largura_tela, (11.2/100)*altura_tela};
+	SDL_Rect colisao_mesa = {(54.1/100)*largura_tela, (35.3/100)*altura_tela, (9.76/100)*largura_tela, (30.9/100)*altura_tela};
+	SDL_Rect colisao_parede = {(20.4/100)*largura_tela, (11.2/100)*altura_tela, (59.5/100)*largura_tela, (0.15/100)*altura_tela};
+	SDL_Rect colisao_escada = {0, 0, 18.5/100*largura_tela, 23.5/100*altura_tela};
+	//= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =\\
+
+	SDL_Rect Clipes[4];
+	Clipes[0] = {0, 0, 25, 20};
+	Clipes[1] = {24, 0, 25, 20};
+	Clipes[2] = {0, 19, 25, 20};
+	Clipes[3] = {24, 19, 25, 20};
+	
+
+	//Variaveis para contar o sprite\\
+
+	int contador_cima = 0;
+	int contador_baixo = 0;
+	int contador_esq = 0;
+	int contador_dir = 0;
+	//= = = = = = = = = = = = = = = = =\\
+
+	SDL_Texture* movDetetive = NULL;
+
+	SDL_Texture* textura = carregar_midia("Recursos/Imagens/CENARIO.png", renderer_global);
+
+	SDL_RenderClear(renderer_global);
+
+	SDL_RenderCopy(renderer_global, textura, NULL, NULL);
+
+	textura = carregar_midia("Recursos/Imagens/Objetos/Livro_Pesquisa_0.png", renderer_global);
+
+	SDL_RenderCopy(renderer_global, textura, NULL, &livro);
+
+	textura = carregar_midia("Recursos/Imagens/Objetos/Pagina_puzzle.png", renderer_global);
+
+	if (fragmento1)
+	{
+		SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+	}
+	if (fragmento2)
+	{
+		SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+	}
+	if (fragmento3)
+	{
+		SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+	}
+	if (fragmento4)
+	{
+		SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+	}
+
+	if (!(fragmento1 || fragmento2 || fragmento3 || fragmento4))
+	{
+		texto(7, NULL, textura, mostrar_texto, fonte);
+	}
+	else
+	{
+		texto(6, NULL, textura, mostrar_texto, fonte);
+	}
+
+	SDL_DestroyTexture(textura);
+
+	SDL_RenderPresent(renderer_global);
+
+	//Variavel do caminho das imagens para passar na função carregar_midia()
+	const char *caminho = "Recursos/Imagens/moviBaixo/detFrt1.png";
+
+	//Indicador da Ultima tecla de movimentação pressionada
+	int tecla = 0;
+
+	//Verificador de Colisões
+	bool colisao = false;
+	bool colisao_livro = false;
+
+	//Indica qual sprite não deve ser alterado
+	int alterar = 0;
+
+	int contador_passos = 0;
+
+	//Loop da fase
+	while (rodar)
+	{
+		//Loop da Captura de eventos
+		while (SDL_PollEvent(&jogo) != 0)
+		{
+			//Clicar no X da janela fecha o jogo
+			if(jogo.type == SDL_QUIT)
+			{
+				rodar = false;
+			}
+			//Pressionar algumas teclas faz alguma coisa
+			else if(jogo.type == SDL_KEYDOWN)
+			{	
+				alterar = 0;
+
+				textura = carregar_midia("Recursos/Imagens/CENARIO.png", renderer_global);
+
+				SDL_RenderClear(renderer_global);
+
+				SDL_RenderCopy(renderer_global, textura, NULL, NULL);
+
+				SDL_DestroyTexture(textura);
+
+				colisao_livro = SDL_HasIntersection(&detetive, &livro);
+
+				if (!colisao_livro)
+				{
+					textura = carregar_midia("Recursos/Imagens/Objetos/Livro_Pesquisa_0.png", renderer_global);
+				}
+				else
+				{
+					textura = carregar_midia("Recursos/Imagens/Objetos/Livro_Pesquisa.png", renderer_global);
+				}
+
+				SDL_RenderCopy(renderer_global, textura, NULL, &livro);
+				
+				SDL_DestroyTexture(textura);
+
+				textura = carregar_midia("Recursos/Imagens/Objetos/Pag_destaque.png", renderer_global);
+
+				if (SDL_HasIntersection(&detetive, &pagina1) && fragmento1)
+				{
+					SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+
+					alterar = 1;
+				}
+				else if (SDL_HasIntersection(&detetive, &pagina2) && fragmento2)
+				{
+					SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+
+					alterar = 2;
+				}
+				else if (SDL_HasIntersection(&detetive, &pagina3) && fragmento3)
+				{
+					SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+
+					alterar = 3;
+				}
+				else if (SDL_HasIntersection(&detetive, &pagina4) && fragmento4)
+				{
+					SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+
+					alterar = 4;
+				}
+				
+				SDL_DestroyTexture(textura);
+
+				textura = carregar_midia("Recursos/Imagens/Objetos/Pagina_puzzle.png", renderer_global);
+
+				if (alterar == 1)
+				{
+					if (fragmento2)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+					}
+					if (fragmento3)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+					}
+					if (fragmento4)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+					}
+				}
+				else if (alterar == 2)
+				{
+					if (fragmento1)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+					}
+					if (fragmento3)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+					}
+					if (fragmento4)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+					}
+				}
+				else if (alterar == 3)
+				{
+					if (fragmento1)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+					}
+					if (fragmento2)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+					}
+					if (fragmento4)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+					}
+				}
+				else if (alterar == 4)
+				{
+					if (fragmento1)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+					}
+					if (fragmento2)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+					}
+					if (fragmento3)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+					}
+				}
+				else
+				{
+					if (fragmento1)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[0], &pagina1);
+					}
+					if (fragmento2)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[1], &pagina2);
+					}
+					if (fragmento3)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[2], &pagina3);
+					}
+					if (fragmento4)
+					{
+						SDL_RenderCopy(renderer_global, textura, &Clipes[3], &pagina4);
+					}
+				}
+
+				SDL_DestroyTexture(textura);
+				
+				switch (jogo.key.keysym.sym)
+				{
+					//Move Jackey Para Cima
+					case SDLK_w:
+					{	
+						if (tecla != 1)
+						{
+							tecla = 1;
+						}
+
+						if (contador_cima == 1)
+						{
+							caminho = "Recursos/Imagens/moviCima/detCostas1.png";
+						}
+						else if (contador_cima == 2)
+						{
+							caminho = "Recursos/Imagens/moviCima/detCostas2.png";
+						}
+						else if (contador_cima == 3)
+						{
+							caminho = "Recursos/Imagens/moviCima/detCostas3.png";
+						}
+						else if (contador_cima == 4)
+						{
+							caminho = "Recursos/Imagens/moviCima/detCostas4.png";
+							contador_cima = 0;
+						}
+
+						mov_detetive(&contador_cima, caminho, movDetetive, detetive);
+
+						contador_baixo = 1;
+						
+						contador_dir = 1;
+						
+						contador_esq = 1;
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if (detetive.y - 10 > 0 && !colisao)
+						{
+							detetive.y -= 10;
+						}
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if(colisao)
+						{	
+							detetive.y += 10;
+						}
+						
+						som_passos(passo_1, passo_2, passo_3, &contador_passos);
+
+						break;
+					}
+					//Move Jackey Para Esquerda
+					case SDLK_a:
+					{
+						if (tecla != 2)
+						{
+							tecla = 2;
+						}
+						
+						if (contador_esq == 1)
+						{
+							caminho = "Recursos/Imagens/moviEsq/detEsq1.png";
+						}
+						else if (contador_esq == 2)
+						{
+							caminho = "Recursos/Imagens/moviEsq/detEsq2.png";
+						}
+						else if (contador_esq == 3)
+						{
+							caminho = "Recursos/Imagens/moviEsq/detEsq3.png";
+						}
+						else if (contador_esq == 4)
+						{
+							caminho = "Recursos/Imagens/moviEsq/detEsq4.png";
+							contador_esq = 0;
+						}
+
+						mov_detetive(&contador_esq, caminho, movDetetive, detetive);
+
+						contador_baixo = 1;
+
+						contador_dir = 1;
+
+						contador_cima = 1;
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if (detetive.x - 10 > 0 && !colisao)
+						{
+							detetive.x -= 10;
+						}
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if (colisao)
+						{	
+							detetive.x += 10;
+						}
+
+						som_passos(passo_1, passo_2, passo_3, &contador_passos);
+						
+						break;
+					}
+					//Move Jackey Para Baixo
+					case SDLK_s:
+					{
+						if (tecla != 3)
+						{
+							tecla = 3;
+						}
+
+						if (contador_baixo == 1)
+						{
+							caminho = "Recursos/Imagens/moviBaixo/detFrt1.png";
+						}
+						else if (contador_baixo == 2)
+						{
+							caminho = "Recursos/Imagens/moviBaixo/detFrt2.png";
+						}
+						else if (contador_baixo == 3)
+						{
+							caminho = "Recursos/Imagens/moviBaixo/detFrt3.png";
+						}
+						else if (contador_baixo == 4)
+						{
+							caminho = "Recursos/Imagens/moviBaixo/detFrt4.png";
+							contador_baixo = 0;
+						}
+
+						mov_detetive(&contador_baixo, caminho, movDetetive, detetive);
+
+						contador_cima = 1;
+
+						contador_dir = 1;
+
+						contador_esq = 1;
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if ((detetive.y + 10 + detetive.h) < altura_tela && !colisao)
+						{
+							detetive.y += 10;
+						}
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if (colisao)
+						{
+							detetive.y -= 10;
+						}
+						
+						som_passos(passo_1, passo_2, passo_3, &contador_passos);
+						
+						break;
+					}
+					//Move Jackey Para Direita
+					case SDLK_d:
+					{
+						if (tecla != 4)
+						{
+							tecla = 4;
+						}
+				
+						if (contador_dir == 1)
+						{
+							caminho = "Recursos/Imagens/moviDir/detDir1.png";
+						}
+						else if (contador_dir == 2)
+						{
+							caminho = "Recursos/Imagens/moviDir/detDir2.png";
+						}
+						else if (contador_dir == 3)
+						{
+							caminho = "Recursos/Imagens/moviDir/detDir3.png";
+						}
+						else if (contador_dir == 4)
+						{
+							caminho = "Recursos/Imagens/moviDir/detDir4.png";
+							contador_dir = 0;
+						}
+
+						mov_detetive(&contador_dir, caminho, movDetetive, detetive);
+
+						contador_baixo = 1;
+
+						contador_cima = 1;
+
+						contador_esq = 1;
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if ((detetive.x + 10 + detetive.w) < largura_tela && !colisao)
+						{
+							detetive.x += 10;
+						}
+
+						colisao = SDL_HasIntersection(&detetive, &colisao_mesa) || SDL_HasIntersection(&detetive, &colisao_estante1) || SDL_HasIntersection(&detetive, &colisao_estante2) || SDL_HasIntersection(&detetive, &colisao_parede) || SDL_HasIntersection(&detetive, &colisao_escada);
+
+						if (colisao)
+						{
+							detetive.x -= 10;
+						}
+
+						som_passos(passo_1, passo_2, passo_3, &contador_passos);
+						
+						break;
+					}
+					case SDLK_e:
+					{
+						manter_detetive(&contador_baixo, &contador_cima, &contador_dir, &contador_esq, &tecla, &detetive, movDetetive, caminho);
+
+						if (colisao_livro)
+						{
+							if (contador_frag == 4)
+							{
+								contador_frag++;
+							}
+							habilitar_puzzle = true;
+						}
+						else if (SDL_HasIntersection(&detetive, &pagina1) && fragmento1)
+						{
+							fragmento1 = false;
+							contador_frag++;
+							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
+						}
+						else if (SDL_HasIntersection(&detetive, &pagina2) && fragmento2)
+						{
+							fragmento2 = false;
+							contador_frag++;
+							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
+						}
+						else if (SDL_HasIntersection(&detetive, &pagina3) && fragmento3)
+						{
+							fragmento3 = false;
+							contador_frag++;
+							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
+						}
+						else if (SDL_HasIntersection(&detetive, &pagina4) && fragmento4)
+						{
+							fragmento4 = false;
+							contador_frag++;
+							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
+						}
+
+						texto(contador_frag, habilitar_puzzle, textura, mostrar_texto, fonte);
+
+						SDL_RenderPresent(renderer_global);
+						break;
+					}
+					case SDLK_q:
+					{
+						manter_detetive(&contador_baixo, &contador_cima, &contador_dir, &contador_esq, &tecla, &detetive, movDetetive, caminho);
+
+						if (SDL_HasIntersection(&detetive, &saida))
+						{
+							rodar = false;
+						}
+					}
+					default:
+					{
+						manter_detetive(&contador_baixo, &contador_cima, &contador_dir, &contador_esq, &tecla, &detetive, movDetetive, caminho);
+					}
+				}
+			}
+		}
+	
+		SDL_RenderPresent(renderer_global);
+	}
+
+	save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
+
+	TTF_CloseFont(fonte);
+	Mix_HaltMusic();
+	fechar();
+	return 0;
+}
