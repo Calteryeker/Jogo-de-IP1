@@ -789,6 +789,18 @@ int main(int argc, char* args[])
 							rodar = false;
 						}
 					}
+					case SDLK_f:
+					{
+						if (contador_frag == 5)
+						{
+							textura = carregar_midia("Recursos/Imagens/Objetos/Pagina_resolvida.png", renderer_global);
+							SDL_RenderCopy(renderer_global, textura, NULL, NULL);
+							SDL_DestroyTexture(textura);
+							SDL_Delay(5000);
+						}
+						
+						break;
+					}
 					default:
 					{
 						manter_detetive(&contador_baixo, &contador_cima, &contador_dir, &contador_esq, &tecla, &detetive, movDetetive, caminho);
