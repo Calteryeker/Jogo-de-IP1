@@ -24,7 +24,7 @@ void iniciar()
 	IMG_Init(IMG_INIT_PNG);								//
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 5000); //
 	
-	janela_global = SDL_CreateWindow("Jogo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, largura_tela, altura_tela, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE /*| SDL_WINDOW_FULLSCREEN*/);//
+	janela_global = SDL_CreateWindow("Jogo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, largura_tela, altura_tela, SDL_WINDOW_SHOWN /*| SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN*/);//
 	renderer_global = SDL_CreateRenderer(janela_global, -1, SDL_RENDERER_ACCELERATED);																					   //Inicialização da Janela
 	SDL_SetRenderDrawColor(renderer_global, 255, 255, 255, 255);																										   //
 }
@@ -202,7 +202,7 @@ void texto(int flag, bool habilitar, SDL_Texture* textura, SDL_Rect mostrar_text
 	}
 	else if (flag == 7)
 	{
-		frase = "Não há mais nada a ser fazer aqui!";
+		frase = "Pressione F para mostrar a pista!";
 	}
 
 	textura = criar_texto(frase, fonte);
@@ -210,7 +210,7 @@ void texto(int flag, bool habilitar, SDL_Texture* textura, SDL_Rect mostrar_text
 	SDL_RenderPresent(renderer_global);
 }
 
-void save_cenario(int contador, bool fragmento1, bool fragmento2, bool fragmento3, bool fragmento4, bool habilitado)
+/*void save_cenario(int contador, bool fragmento1, bool fragmento2, bool fragmento3, bool fragmento4, bool habilitado)
 {
 	FILE* salvar = NULL;
 
@@ -220,9 +220,9 @@ void save_cenario(int contador, bool fragmento1, bool fragmento2, bool fragmento
 	
 	fclose(salvar);
 
-}
+}*/
 
-void load_cenario(int* contador, bool* fragmento1, bool* fragmento2, bool* fragmento3, bool* fragmento4, bool* habilitado)
+/*void load_cenario(int* contador, bool* fragmento1, bool* fragmento2, bool* fragmento3, bool* fragmento4, bool* habilitado)
 {
 	int aux1 = 0;
 	int aux2 = 0; 
@@ -246,6 +246,7 @@ void load_cenario(int* contador, bool* fragmento1, bool* fragmento2, bool* fragm
 	
 	fclose(abrir);
 }
+*/
 
 int main(int argc, char* args[])
 {
@@ -260,7 +261,7 @@ int main(int argc, char* args[])
 
 	int contador_frag = 0;
 
-	load_cenario(&contador_frag, &fragmento1, &fragmento2, &fragmento3, &fragmento4, &habilitar_puzzle);
+	//load_cenario(&contador_frag, &fragmento1, &fragmento2, &fragmento3, &fragmento4, &habilitar_puzzle);
 
 	TTF_Font* fonte = TTF_OpenFont("Recursos/Fonte/Pacifico.ttf", 24);
 
@@ -741,41 +742,45 @@ int main(int argc, char* args[])
 					case SDLK_e:
 					{
 						manter_detetive(&contador_baixo, &contador_cima, &contador_dir, &contador_esq, &tecla, &detetive, movDetetive, caminho);
-
-						if (colisao_livro)
+						
+						if (contador_frag < 5)
 						{
-							if (contador_frag == 4)
+
+							if (colisao_livro)
 							{
+								if (contador_frag == 4)
+								{
+									contador_frag++;
+								}
+								habilitar_puzzle = true;
+							}
+							else if (SDL_HasIntersection(&detetive, &pagina1) && fragmento1)
+							{
+								fragmento1 = false;
 								contador_frag++;
 							}
-							habilitar_puzzle = true;
-						}
-						else if (SDL_HasIntersection(&detetive, &pagina1) && fragmento1)
-						{
-							fragmento1 = false;
-							contador_frag++;
-							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
-						}
-						else if (SDL_HasIntersection(&detetive, &pagina2) && fragmento2)
-						{
-							fragmento2 = false;
-							contador_frag++;
-							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
-						}
-						else if (SDL_HasIntersection(&detetive, &pagina3) && fragmento3)
-						{
-							fragmento3 = false;
-							contador_frag++;
-							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
-						}
-						else if (SDL_HasIntersection(&detetive, &pagina4) && fragmento4)
-						{
-							fragmento4 = false;
-							contador_frag++;
-							save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
-						}
+							else if (SDL_HasIntersection(&detetive, &pagina2) && fragmento2)
+							{
+								fragmento2 = false;
+								contador_frag++;
+							}
+							else if (SDL_HasIntersection(&detetive, &pagina3) && fragmento3)
+							{
+								fragmento3 = false;
+								contador_frag++;
+							}
+							else if (SDL_HasIntersection(&detetive, &pagina4) && fragmento4)
+							{
+								fragmento4 = false;
+								contador_frag++;
+							}
 
-						texto(contador_frag, habilitar_puzzle, textura, mostrar_texto, fonte);
+							texto(contador_frag, habilitar_puzzle, textura, mostrar_texto, fonte);
+						}
+						else
+						{
+							texto(7, NULL, textura, mostrar_texto, fonte);
+						}
 
 						SDL_RenderPresent(renderer_global);
 						break;
@@ -788,6 +793,7 @@ int main(int argc, char* args[])
 						{
 							rodar = false;
 						}
+						break;
 					}
 					case SDLK_f:
 					{
@@ -811,8 +817,6 @@ int main(int argc, char* args[])
 	
 		SDL_RenderPresent(renderer_global);
 	}
-
-	save_cenario(contador_frag, fragmento1, fragmento2, fragmento3, fragmento4, habilitar_puzzle);
 
 	TTF_CloseFont(fonte);
 	Mix_HaltMusic();
